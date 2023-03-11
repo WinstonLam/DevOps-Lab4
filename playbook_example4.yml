@@ -1,0 +1,39 @@
+---
+- hosts: web-server1
+  name: example4
+  tasks:
+    - name: generate secret
+      ansible.builtin.shell: set -o pipefail && date +%s | sha256sum | base64 | head -c 32 ; echo
+      register: command_output
+      changed_when: false
+      args:
+        executable: /bin/bash
+
+    - name: command_output
+      ansible.builtin.debug:
+        msg: "Secret password is {{ command_output.stdout }}"
+
+    - name: Add command_output to dummy host
+      ansible.builtin.add_host:
+        name: "command_output_holder"
+        paswd: "{{ command_output.stdout }}"
+
+    - name: print hostvars
+      ansible.builtin.debug:
+        msg: "Secret password is {{ hostvars['command_output_holder']['paswd'] }}"
+
+- hosts: web-server2
+  tasks:
+    - name: print paswd
+      ansible.builtin.debug:
+        msg: "paswd is {{ hostvars['command_output_holder']['paswd'] }}"
+# In the context of the second file provided, the hostvars variable is used to
+# access the paswd variable that was defined in a previous play. The play generates
+#  a secret password using the ansible.builtin.shell module, registers the output as
+#   command_output, and then adds the output to a dummy host named command_output_holder
+#    using the ansible.builtin.add_host module.
+
+# Later in the same playbook, when executing a task against a different host (web-server2)
+# , the hostvars variable is used to access the paswd variable that was defined for the
+#  command_output_holder host. This allows the secret password to be shared across
+#   different plays and tasks.
